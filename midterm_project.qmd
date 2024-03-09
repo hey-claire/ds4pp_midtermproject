@@ -4,7 +4,7 @@ author: "Claire Sullivan"
 format: html
 editor: visual
 ---
-Hello. 
+
 ## Loading Libraries
 
 ```{r}
@@ -20,7 +20,7 @@ library(janitor)
 childcare_prices <- read_csv("childcare_prices_national.csv")
 ```
 
-### Tidy Data
+### Tidy Data 
 
 ```{r}
 # filter to California
@@ -45,8 +45,46 @@ childcare_prices_CA
 ```
 
 ```{r}
+# developing a metric for childcare burden by county - childcare burden will represent the median amount of money spent annually on childcare as a proportion of median household income for ONE parent with ONE child of any selected age group 
+
+childcare_burden_CA <- childcare_prices_CA |> 
+  group_by(StudyYear, County_Name) |> 
+  mutate(
+    annual_mc_infant = MCInfant * 52, 
+    annual_mc_preschool = MCPreschool * 52, 
+    annual_mc_toddler = MCToddler * 52, 
+    annual_mc_sa = MCSA * 52, 
+    mc_infant_burden = annual_mc_infant/MHI,
+    mc_preschool_burden = annual_mc_preschool/MHI,
+    mc_toddler_burden = annual_mc_toddler/MHI,
+    mc_sa_burden = annual_mc_sa/MHI) |> 
+  select(StudyYear, County_Name, contains("burden"), starts_with("EMP"), TotalPop) |> 
+  rename(
+    emp_mgmt_business_science_art = EMP_M, 
+    emp_service = EMP_Service,
+    emp_sales =  EMP_Sales, 
+    emp_natlres_construct_maintenance = EMP_N,
+    emp_production_transport_materialmoving = EMP_P
+  ) |> 
+  pivot_longer(-c(StudyYear, County_Name, starts_with("emp"), TotalPop), names_to = "age_group", values_to = "annual_childcare_burden") |> 
+  pivot_longer(-c(StudyYear, County_Name, contains("burden"), age_group, annual_childcare_burden, TotalPop), names_to = "employment_sector", values_to = "percent_pop_employed_in_sector")
+
+```
+
+```{r}
+custom_breaks <- c(0, 100000, 500000, 1000000, Inf)
+custom_labels <- c("1-99999", "100000-499999", "500000-1000000", "1000000+")
+
+test <- childcare_burden_CA |> 
+  mutate(population_bins = 
+           cut(TotalPop, 
+               breaks = custom_breaks, 
+               labels = custom_labels))
+```
+
+```{r}
 #dataset filtered down to just bay area counties 
-# burden will be the median yearly price for a family with ONE child in center based care, calculate for infant, toddler, school age, preschool 
+# burden will be the median yearly price for ONE parent with ONE child in center based care, calculate for infant, toddler, school age, preschool 
 
 bay_area_counties <- c("Alameda County", "Napa County", "Santa Clara County", "Contra Costa County", "San Francisco County", "Solano County", "Marin County", "San Mateo County", "Sonoma County")
 
@@ -85,8 +123,6 @@ bay_area_childcare2 |>
 # do childcare prices vary by percentage employed in different occupations?
 ```
 
-median_household income \~ let's do median household income because income includes other sources of money that may be relevant for wealthier counties specifically?
-
 ```{r}
 childcare_prices_CA |> 
   filter(County_Name %in% bay_area_counties) |> 
@@ -105,40 +141,19 @@ Creating a Childcare Burden Metric \~ unsure about this method
 3\) Once you've done this you can divide per person spending on childcare over median household income and get the proportion of median household income in a county that is spent on childcare, weighted for county population.
 
 ```{r}
-sector_data <- childcare_prices_CA |> 
-  select(County_Name, StudyYear, MHI_2018, TotalPop, starts_with("EMP")) |> 
-  filter(County_Name %in% bay_area_counties)
-
-foo <- sector_data |> 
-  pivot_longer(-c(County_Name, TotalPop, StudyYear, MHI_2018), names_to = "sector", values_to = "percent_employed_in_sector")
-
+test |> 
+  filter(age_group == "mc_preschool_burden") |> 
+  ggplot(aes(x = percent_pop_employed_in_sector, y = annual_childcare_burden, color = employment_sector)) +
+  geom_point()
 ```
 
 ```{r}
-# childcare metric!!! again!!!! 
-childcare_prices_CA
-```
-
-```{r}
-# create dataset for Bay Area in 2018 with only useful columns for looking at how prices vary by occupation category 
-
-
-childcare_occupation_data <- childcare_prices_CA |> 
-  filter(County_Name %in% bay_area_counties,
-         StudyYear == 2018) |> 
-  select(County_Name, MHI_2018, MHI, TotalPop, MCInfant, MCToddler, MCPreschool, MFCCInfant, MFCCToddler, MFCCPreschool, MFCCSA, starts_with("EMP")) |> 
-  rename(
-    county = County_Name,
-    med_h_income_2018_dollars = MHI_2018,
-    mgmt_business_science_art = EMP_M, 
-    service = EMP_Service,
-    sales =  EMP_Sales, 
-    natlres_construct_maintenance = EMP_N,
-    production_transport_materialmoving = EMP_P
-  )
-
-long_occupation_data <- childcare_occupation_data |> 
-  pivot_longer(-c(county, med_h_income_2018_dollars, TotalPop, starts_with("MC"), starts_with("MFCC")), names_to = "occupation_sector", values_to = "percent_civillians_employed" )
-
-long_occupation_data
+# take weighted average of the medians by pouplation size in each county 
+# working on this 
+test |> 
+  filter(age_group == "mc_preschool_burden") |> 
+  group_by(population_bins) |> 
+  summarise(average_burden = mean(annual_childcare_burden)) |> 
+  ggplot(aes(x = population_bins, y = annual_childcare_burden)) +
+  geom_col()
 ```
