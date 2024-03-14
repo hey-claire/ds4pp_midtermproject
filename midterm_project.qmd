@@ -51,6 +51,7 @@ childcare_prices_CA
 
 childcare_burden_CA <- childcare_prices_CA |> 
   group_by(StudyYear, County_Name) |> 
+  drop_na(MCInfant, MCPreschool, MCToddler, MCSA) |> 
   mutate(
     annual_mc_infant = MCInfant * 52, # multiply by 52 to convert weekly to yearly
     annual_mc_preschool = MCPreschool * 52, 
@@ -142,18 +143,33 @@ childcare_prices_CA |>
 ```{r}
 childcare_burden_CA |> 
   filter(employment_sector == "emp_mgmt_business_science_art",
-         StudyYear == "2018") |> 
-  ggplot(aes(x = percent_pop_employed_in_sector, y = annual_childcare_burden)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
+         StudyYear == "2018",
+         age_group %in% c("mc_infant_burden", "mc_preschool_burden", "mc_sa_burden")) |> 
+  ggplot(aes(x = percent_pop_employed_in_sector, y = annual_childcare_burden, color = age_group)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = .5) +
   labs(
-    title = "Childcare Burden and Occupation",
+    title = "Childcare Burden and Occupation in 2018",
     subtitle = "Employment in Management, Business, Science, and Art Occupations",
     x = "Percent of County Population Employed in Field",
-    y = "Median Childcare Spending \nas Proportion of Household Income"
+    y = "Median Childcare Spending \nas Proportion of Household Income",
+    color = "Age Group"
   ) +
-  theme_minimal()
-  
+  theme_minimal() +
+  scale_color_brewer(palette = "Dark2", labels = c("Infant", "Toddler and Preschool", "School Age"))
+
+
+childcare_burden_CA |> 
+  filter(employment_sector == "emp_mgmt_business_science_art",
+         StudyYear == "2018") 
+```
+
+```{r}
+# statistical testing on employment sector 
+childcare_burden_CA |>
+  ungroup() |> 
+  filter(StudyYear == "2018",
+         employment_sector == "mc_mgmt_business_science_art")
 ```
 
 ```{r}
@@ -246,7 +262,7 @@ poverty_data_2018 |>
 
 ```
 
-## Creating Different Family Scenarios 
+## Creating Different Family Scenarios
 
 -   two parents making median income with one kid
 
