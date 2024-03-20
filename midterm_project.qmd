@@ -5,12 +5,13 @@ format: html
 editor: visual
 ---
 
+# Claire's Analysis
+
 ## Loading Libraries
 
 ```{r}
 library(tidyverse)
 library(readr)
-#install.packages("janitor")
 library(janitor)
 ```
 
@@ -28,10 +29,9 @@ childcare_prices_CA <- childcare_prices |>
   filter(State_Name == "California") |> 
   mutate(County_Name = as.factor(County_Name))
 
-# find columns where data is entered as character - sapply applies a function (in this case, is.character) over the vector of the column names for childcare_prices_CA
+# find columns where data is entered as character
 
 char_cols <- sapply(childcare_prices_CA, is.character)
-# char_cols
 
 # the only character columns we don't want to convert to numeric are State_Name, County_Name, State_Abbreviation, County_FIPS_Code
 
@@ -46,8 +46,6 @@ childcare_prices_CA
 
 ```{r}
 # developing a metric for childcare burden by county - childcare burden will represent the median amount of money spent annually on childcare as a proportion of median household income for ONE parent with ONE child of any selected age group 
-
-# also cleaning up data for employment sector columns because I want to look at that 
 
 childcare_burden_CA <- childcare_prices_CA |> 
   group_by(StudyYear, County_Name) |> 
@@ -84,59 +82,9 @@ childcare_burden_CA <- childcare_burden_CA |>
 
 ```
 
-```{r}
-# dataset filtered down to just bay area counties 
+## Visualize Data - Visualization I Used for the Project
 
-# divide childcare cost annual/MHI ~ using within year divisions to avoid adjusting for inflation
-
-bay_area_counties <- c("Alameda County", "Napa County", "Santa Clara County", "Contra Costa County", "San Francisco County", "Solano County", "Marin County", "San Mateo County", "Sonoma County")
-
-bay_area_childcare <- childcare_prices_CA |> 
-  filter(County_Name %in% bay_area_counties) |> 
-  group_by(StudyYear, County_Name) |> 
-  mutate(annual_mc_infant = MCInfant * 52,
-         annual_mc_preschool = MCPreschool * 52, 
-         annual_mc_toddler = MCToddler * 52, 
-         annual_mc_sa = MCSA * 52, 
-         mc_infant_burden = annual_mc_infant/MHI,
-         mc_preschool_burden = annual_mc_preschool/MHI,
-         mc_toddler_burden = annual_mc_toddler/MHI,
-         mc_sa_burden = annual_mc_sa/MHI)
-
-
-```
-
-## Exploring Bay Area Counties
-
-```{r}
-bay_area_childcare2 <- bay_area_childcare |> 
-  select(StudyYear, County_Name, mc_infant_burden, mc_preschool_burden, mc_toddler_burden, mc_sa_burden) |> 
-  pivot_longer(-c(StudyYear, County_Name), names_to = "child_age", values_to = "burden")
-
-bay_area_childcare2 |> 
-  filter(County_Name %in% bay_area_counties, child_age == "mc_infant_burden") |> 
-  group_by(County_Name) |> 
-  ggplot(aes(x = StudyYear, y = burden, color = County_Name)) +
-  geom_line() +
-  labs(
-    title = "Childcare Burden for Infant Center Based Care",
-    x = "Year",
-    y = "Childcare Burden",
-    color = "County"
-  )
-```
-
-```{r}
-# comparing Median Household Income in Bay Area Counties
-childcare_prices_CA |> 
-  filter(County_Name %in% bay_area_counties, 
-         StudyYear == 2018) |> 
-  ggplot(aes(x = County_Name, y = MHI_2018, fill = County_Name)) +
-  geom_col()
-
-```
-
-## Explore California Data
+My task: Look at the relationship between employment sector and childcare burden.
 
 ### Employment Sector
 
@@ -164,12 +112,51 @@ childcare_burden_CA |>
          StudyYear == "2018") 
 ```
 
+## Visualizations I Didn't Use for the Project
+
 ```{r}
-# statistical testing on employment sector 
-childcare_burden_CA |>
-  ungroup() |> 
-  filter(StudyYear == "2018",
-         employment_sector == "mc_mgmt_business_science_art")
+# dataset filtered down to just bay area counties 
+
+bay_area_counties <- c("Alameda County", "Napa County", "Santa Clara County", "Contra Costa County", "San Francisco County", "Solano County", "Marin County", "San Mateo County", "Sonoma County")
+
+bay_area_childcare <- childcare_prices_CA |> 
+  filter(County_Name %in% bay_area_counties) |> 
+  group_by(StudyYear, County_Name) |> 
+  mutate(annual_mc_infant = MCInfant * 52,
+         annual_mc_preschool = MCPreschool * 52, 
+         annual_mc_toddler = MCToddler * 52, 
+         annual_mc_sa = MCSA * 52, 
+         mc_infant_burden = annual_mc_infant/MHI,
+         mc_preschool_burden = annual_mc_preschool/MHI,
+         mc_toddler_burden = annual_mc_toddler/MHI,
+         mc_sa_burden = annual_mc_sa/MHI)
+```
+
+```{r}
+bay_area_childcare2 <- bay_area_childcare |> 
+  select(StudyYear, County_Name, mc_infant_burden, mc_preschool_burden, mc_toddler_burden, mc_sa_burden) |> 
+  pivot_longer(-c(StudyYear, County_Name), names_to = "child_age", values_to = "burden")
+
+bay_area_childcare2 |> 
+  filter(County_Name %in% bay_area_counties, child_age == "mc_infant_burden") |> 
+  group_by(County_Name) |> 
+  ggplot(aes(x = StudyYear, y = burden, color = County_Name)) +
+  geom_line() +
+  labs(
+    title = "Childcare Burden for Infant Center Based Care",
+    x = "Year",
+    y = "Childcare Burden",
+    color = "County"
+  )
+```
+
+```{r}
+# comparing Median Household Income in Bay Area Counties
+childcare_prices_CA |> 
+  filter(County_Name %in% bay_area_counties, 
+         StudyYear == 2018) |> 
+  ggplot(aes(x = County_Name, y = MHI_2018, fill = County_Name)) +
+  geom_col()
 ```
 
 ```{r}
@@ -243,58 +230,4 @@ childcare_burden_CA |>
 
 ```
 
-```{r}
-childcare_burden_CA |> 
-  filter(age_group == "mc_infant_burden") |> 
-  group_by(employment_sector)
-```
-
-```{r}
-poverty_data_2018 <- read.csv("ACS_2018_poverty.csv")
-
-poverty_data_2018 <- poverty_data_2018[-c(1), ] |> 
-  separate(col = NAME, into = c("county", "state"), sep = ",")
-
-poverty_data_2018 |> 
-  mutate(state = as.character(state)) |> 
-  filter(state == " California") |> 
-  select()
-
-```
-
-## Creating Different Family Scenarios
-
--   two parents making median income with one kid
-
--   one parent making median income with one kid
-
--   two parents making median income with two kids
-
--   one parent making median income with two kids
-
-```{r}
-# using department of health and human services recommended 7% spending of income on childcare
-two_parents_one_toddler <- childcare_burden_CA |> 
-  group_by(StudyYear, County_Name) |> 
-  filter(age_group == "mc_toddler_burden") |> 
-  mutate(annual_toddler_burden_2_parents = annual_childcare_burden/(2)) |> 
-  group_by(StudyYear, County_Name) |> 
-  summarise(annual_burden = mean(annual_toddler_burden_2_parents)) |> 
-  mutate(exceed_burden = annual_burden > 0.14)
-
-two_parents_one_toddler |> 
- group_by(StudyYear) |>
-  summarise(prop_exceed = mean(exceed_burden),
-            prop_no_exceed = 1 - mean(exceed_burden)) |> 
-  pivot_longer(-c(StudyYear), names_to = "condition", values_to = "proportion") |> 
-  ggplot(aes(x = StudyYear, y = proportion, fill = condition)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  coord_flip()
-
-test <- childcare_burden_CA |> 
-  select(StudyYear, County_Name, population_bins, age_group, annual_childcare_burden) |> 
-  group_by(StudyYear, County_Name) |> 
-  mutate(exceed_burden = annual_childcare_burden > 0.07)
- 
-  
-```
+## 
